@@ -53,7 +53,7 @@ For more information about various instantiation arguments:
 from unet.model import UNet
 print(UNet.__doc__)
 ```
-
+This package is exclusively tested on Python 3.7.3 and PyTorch 1.1.0 
 
 Note
 ====
