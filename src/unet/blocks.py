@@ -9,17 +9,17 @@ import torch.nn.functional as F
 
 
 class EncoderBlock(nn.Module):
-    def __init__(self,filter_num=64,in_channels=1,use_bn=False):
-        """
-        Instances the Encoder block that forms a part of a U-Net
-        Parameters:
-            in_channels (int): Depth (or number of channels) of the tensor that the block acts on
-            filter_num (int) : Number of filters used in the convolution ops inside the block,
-                               depth of the output of the enc block
-            use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
+    """
+    Instances the Encoder block that forms a part of a U-Net
+    Parameters:
+        in_channels (int): Depth (or number of channels) of the tensor that the block acts on
+        filter_num (int) : Number of filters used in the convolution ops inside the block,
+                             depth of the output of the enc block
+        use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
 
+    """
+    def __init__(self, filter_num=64, in_channels=1, use_bn=False):
 
-        """
         super(EncoderBlock,self).__init__()
         self.use_bn = use_bn
         self.filter_num = int(filter_num)
@@ -51,18 +51,19 @@ class EncoderBlock(nn.Module):
 
 
 class DecoderBlock(nn.Module):
-    def __init__(self,in_channels,concat_layer_depth,filter_num,interpolate=False,use_bn=False):
-        """
-        Decoder block used in the U-Net
+    """
+    Decoder block used in the U-Net
 
-        Parameters:
-            in_channels (int) : Number of channels of the incoming tensor for the upsampling op
-            concat_layer_depth (int) : Number of channels to be concatenated via skip connections
-            filter_num (int) : Number of filters used in convolution, the depth of the output of the dec block
-            interpolate (bool) : Decides if upsampling needs to performed via interpolation or transposed convolution
-            use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
+    Parameters:
+        in_channels (int) : Number of channels of the incoming tensor for the upsampling op
+        concat_layer_depth (int) : Number of channels to be concatenated via skip connections
+        filter_num (int) : Number of filters used in convolution, the depth of the output of the dec block
+        interpolate (bool) : Decides if upsampling needs to performed via interpolation or transposed convolution
+        use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
 
-        """
+    """
+    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, use_bn=False):
+
         # Up-sampling (interpolation or transposed conv) --> EncoderBlock
         super(DecoderBlock,self).__init__()
         self.filter_num = int(filter_num)
@@ -119,11 +120,6 @@ class DecoderBlock(nn.Module):
         padded_up_sample_layer = F.pad(up_sample_layer, (diffX // 2, diffX - diffX//2,diffY // 2, diffY - diffY//2))
         return padded_up_sample_layer
 
-
-# Prior Block
-
-
-# Posterior Block
 
 
 

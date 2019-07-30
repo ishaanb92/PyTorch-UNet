@@ -3,33 +3,31 @@ A PyTorch Implementation of a U-Net
 http://arxiv.org/abs/1505.04597
 
 Author: Ishaan Bhat
-i.r.bhat@umcutrecht.nl
+ibhat@umcutrecht.nl
 
 """
-import torch.nn as nn
-import torch.nn.functional as F
 from .blocks import *
 from math import pow
 
+
 class UNet(nn.Module):
+    """
+     PyTorch class definition for the U-Net architecture for image segmentation
 
-    def __init__(self,image_size=128,n_channels=1,base_filter_num=64,num_blocks=4,num_classes=5,use_bn=False):
-        """
-        PyTorch class definition for the U-Net architecture for image segmentation
+     Parameters:
+         image_size (int) : Height or width of a square image (assumes image is square)
+         n_channels (int) : Number of image channels (3 for RGB, 1 for grayscale)
+         base_filter_num (int) : Number of filters for the first convolution (doubled for every subsequent block)
+         num_blocks (int) : Number of encoder/decoder blocks
+         num_classes(int) : Number of classes that need to be segmented
 
-        Parameters:
-            image_size (int) : Height or width of a square image (assumes image is square)
-            n_channels (int) : Number of image channels (3 for RGB, 1 for grayscale)
-            base_filter_num (int) : Number of filters for the first convolution (doubled for every subsequent block)
-            num_blocks (int) : Number of encoder/decoder blocks
-            num_classes(int) : Number of classes that need to be segmented
+     Returns:
+         out (torch.Tensor) : Prediction of the segmentation map
 
-        Returns:
-            out (torch.Tensor) : Prediction of the segmentation map
+     """
+    def __init__(self, image_size=128, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=False):
 
-        """
-        super(UNet,self).__init__()
-
+        super(UNet, self).__init__()
         self.use_bn = use_bn
         self.output_shape = (int(image_size), int(image_size))
         self.contracting_path = nn.ModuleList()
@@ -39,10 +37,10 @@ class UNet(nn.Module):
         self.n_channels = int(n_channels)
         self.n_classes = int(num_classes)
         self.base_filter_num = int(base_filter_num)
-        self.enc_layer_depths = [] # Keep track of the output depths of each encoder block
+        self.enc_layer_depths = []  # Keep track of the output depths of each encoder block
 
         for block_id in range(num_blocks):
-            enc_block_filter_num = pow(2,block_id)*self.base_filter_num # Output depth of current encoder stage
+            enc_block_filter_num = pow(2, block_id)*self.base_filter_num # Output depth of current encoder stage
             if block_id == 0:
                 enc_in_channels = self.n_channels
             else:
