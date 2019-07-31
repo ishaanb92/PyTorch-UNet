@@ -18,6 +18,13 @@ git clone https://github.com/kilgore92/PyTorch-UNet.git
 
 ```
 
+* Install package dependencies as follows:
+```
+cd <UNET_FOLDER>
+<PATH_TO_PYTHON_ENV>/bin/pip install -r requirements.txt
+```
+
+
 * Install this in your local python environment using the ```setup.py``` script.
 ```
 cd <UNET_FOLDER>
@@ -30,11 +37,6 @@ or
 <PATH_TO_PYTHON_ENV>/bin/python setup.py install 
 ```
 
-* Install package dependencies as follows:
-```
-cd <UNET_FOLDER>
-<PATH_TO_PYTHON_ENV>/bin/pip install -r requirements.txt
-```
 
 Example Usage
 =============
