@@ -37,15 +37,16 @@ class EncoderBlock(nn.Module):
             self.bn_op = nn.BatchNorm2d(num_features=self.filter_num)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
 
+        x = self.conv1(x)
         if self.use_bn is True:
             x = self.bn_op(x)
+        x = F.relu(x)
 
-        x = F.relu(self.conv2(x))
-
+        x = self.conv2(x)
         if self.use_bn is True:
             x = self.bn_op(x)
+        x = F.relu(x)
 
         return x
 
@@ -91,8 +92,7 @@ class DecoderBlock(nn.Module):
                                         filter_num=self.filter_num,
                                         use_bn=use_bn)
 
-
-    def forward(self,x,skip_layer):
+    def forward(self, x, skip_layer):
         up_sample_out = F.relu(self.up_sample(x))
         padded_up_sample_layer = self.pad_before_merge(up_sample_out,skip_layer)
         merged_out = torch.cat([padded_up_sample_layer,skip_layer],1)
