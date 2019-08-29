@@ -94,8 +94,8 @@ class DecoderBlock(nn.Module):
 
     def forward(self, x, skip_layer):
         up_sample_out = F.relu(self.up_sample(x))
-        padded_up_sample_layer = self.pad_before_merge(up_sample_out,skip_layer)
-        merged_out = torch.cat([padded_up_sample_layer,skip_layer],1)
+        padded_up_sample_layer = self.pad_before_merge(up_sample_out, skip_layer)
+        merged_out = torch.cat([padded_up_sample_layer, skip_layer], dim=1)
         out = self.down_sample(merged_out)
         return out
 
