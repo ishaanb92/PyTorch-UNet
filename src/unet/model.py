@@ -25,11 +25,10 @@ class UNet(nn.Module):
          out (torch.Tensor) : Prediction of the segmentation map
 
      """
-    def __init__(self, image_size=128, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=False):
+    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=False):
 
         super(UNet, self).__init__()
         self.use_bn = use_bn
-        self.output_shape = (int(image_size), int(image_size))
         self.contracting_path = nn.ModuleList()
         self.expanding_path = nn.ModuleList()
 
@@ -72,6 +71,9 @@ class UNet(nn.Module):
                                 kernel_size=1)
 
     def forward(self, x):
+
+        h, w = x.shape[-2:]
+
         # Encoder
         enc_outputs = []
         for enc_op in self.contracting_path:
@@ -91,7 +93,7 @@ class UNet(nn.Module):
 
         # Interpolate to match the size of seg-map
         out = F.interpolate(input=x,
-                            size=self.output_shape,
+                            size=(h, w),
                             mode='bilinear',
                             align_corners=True)
 
