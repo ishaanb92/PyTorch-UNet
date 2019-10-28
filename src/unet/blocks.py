@@ -27,11 +27,13 @@ class EncoderBlock(nn.Module):
 
         self.conv1 = nn.Conv2d(in_channels=self.in_channels,
                                out_channels=self.filter_num,
-                               kernel_size=3)
+                               kernel_size=3,
+                               padding=1)
 
         self.conv2 = nn.Conv2d(in_channels=self.filter_num,
                                out_channels=self.filter_num,
-                               kernel_size=3)
+                               kernel_size=3,
+                               padding=1)
 
         if self.use_bn is True:
             self.bn_op = nn.BatchNorm2d(num_features=self.filter_num)
@@ -79,7 +81,8 @@ class DecoderBlock(nn.Module):
 
                                            nn.Conv2d(in_channels=self.in_channels,
                                                      out_channels=self.in_channels,
-                                                     kernel_size=1)
+                                                     kernel_size=1,
+                                                     padding=1)
                                            )
 
         else:

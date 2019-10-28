@@ -3,7 +3,7 @@ A PyTorch Implementation of a U-Net
 http://arxiv.org/abs/1505.04597
 
 Author: Ishaan Bhat
-ibhat@umcutrecht.nl
+Email: ishaan@isi.uu.nl
 
 """
 from .blocks import *
