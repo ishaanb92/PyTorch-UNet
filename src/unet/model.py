@@ -25,7 +25,7 @@ class UNet(nn.Module):
          out (torch.Tensor) : Prediction of the segmentation map
 
      """
-    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=False):
+    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True):
 
         super(UNet, self).__init__()
         self.use_bn = use_bn
