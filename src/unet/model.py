@@ -20,12 +20,13 @@ class UNet(nn.Module):
          base_filter_num (int) : Number of filters for the first convolution (doubled for every subsequent block)
          num_blocks (int) : Number of encoder/decoder blocks
          num_classes(int) : Number of classes that need to be segmented
+         mode (str): 2D or 3D
 
      Returns:
          out (torch.Tensor) : Prediction of the segmentation map
 
      """
-    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True):
+    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D'):
 
         super(UNet, self).__init__()
         self.use_bn = use_bn
@@ -37,6 +38,18 @@ class UNet(nn.Module):
         self.n_classes = int(num_classes)
         self.base_filter_num = int(base_filter_num)
         self.enc_layer_depths = []  # Keep track of the output depths of each encoder block
+        self.mode = mode
+
+        if mode == '2D':
+            self.encoder = EncoderBlock
+            self.decoder = DecoderBlock
+            self.pool = nn.MaxPool2d
+        elif mode == '3D':
+            self.encoder = EncoderBlock3D
+            self.decoder = DecoderBlock3D
+            self.pool = nn.MaxPool3d
+        else:
+            print('{} mode is invalid'.format(mode))
 
         for block_id in range(num_blocks):
             enc_block_filter_num = int(pow(2, block_id)*self.base_filter_num)  # Output depth of current encoder stage
@@ -45,41 +58,49 @@ class UNet(nn.Module):
             else:
                 enc_in_channels = enc_block_filter_num//2
             self.enc_layer_depths.append(enc_block_filter_num)
-            self.contracting_path.append(EncoderBlock(in_channels=enc_in_channels,
+            self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
                                                       filter_num=enc_block_filter_num,
                                                       use_bn=self.use_bn))
 
         # Bottleneck layer
         bottle_neck_filter_num = self.enc_layer_depths[-1]*2
         bottle_neck_in_channels = self.enc_layer_depths[-1]
-        self.bottle_neck_layer = EncoderBlock(filter_num=bottle_neck_filter_num,
+        self.bottle_neck_layer = self.encoder(filter_num=bottle_neck_filter_num,
                                               in_channels=bottle_neck_in_channels,
                                               use_bn=self.use_bn)
 
         # Decoder Path
         for block_id in range(num_blocks):
             dec_in_channels = int(bottle_neck_filter_num//pow(2, block_id))
-            self.expanding_path.append(DecoderBlock(in_channels=dec_in_channels,
+            self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
                                                     filter_num=self.enc_layer_depths[-1-block_id],
                                                     concat_layer_depth=self.enc_layer_depths[-1-block_id],
                                                     interpolate=True,
                                                     use_bn=self.use_bn))
 
         # Output Layer
-        self.output = nn.Conv2d(in_channels=int(self.enc_layer_depths[0]),
-                                out_channels=self.n_classes,
-                                kernel_size=1)
+        if mode == '2D':
+            self.output = nn.Conv2d(in_channels=int(self.enc_layer_depths[0]),
+                                    out_channels=self.n_classes,
+                                    kernel_size=1)
+        else:
+            self.output = nn.Conv3d(in_channels=int(self.enc_layer_depths[0]),
+                                    out_channels=self.n_classes,
+                                    kernel_size=1)
 
     def forward(self, x):
 
-        h, w = x.shape[-2:]
+        if self.mode == '2D':
+            h, w = x.shape[-2:]
+        else:
+            d, h, w = x.shape[-3:]
 
         # Encoder
         enc_outputs = []
         for enc_op in self.contracting_path:
             x = enc_op(x)
             enc_outputs.append(x)
-            x = nn.MaxPool2d(kernel_size=2)(x)
+            x = self.pool(kernel_size=2)(x)
 
         # Bottle-neck layer
         x = self.bottle_neck_layer(x)
@@ -92,10 +113,15 @@ class UNet(nn.Module):
         x = self.output(x)
 
         # Interpolate to match the size of seg-map
-        out = F.interpolate(input=x,
-                            size=(h, w),
-                            mode='bilinear',
-                            align_corners=True)
+        if self.mode == '2D':
+            out = F.interpolate(input=x,
+                                size=(h, w),
+                                mode='bilinear',
+                                align_corners=True)
+        else:
+            out = F.interpolate(input=x,
+                                size=(d, h, w),
+                                mode='nearest')  # 'bilinear' is not supported by PyTorch for volumetric data
 
         out = F.relu(out)
 
