@@ -52,22 +52,51 @@ class UNet(nn.Module):
             print('{} mode is invalid'.format(mode))
 
         for block_id in range(num_blocks):
-            enc_block_filter_num = int(pow(2, block_id)*self.base_filter_num)  # Output depth of current encoder stage
+            enc_block_filter_num = int(pow(2, block_id)*self.base_filter_num)  # Output depth of current encoder stage (for 2D UNet)
             if block_id == 0:
                 enc_in_channels = self.n_channels
             else:
-                enc_in_channels = enc_block_filter_num//2
-            self.enc_layer_depths.append(enc_block_filter_num)
+                if self.mode == '2D':
+                    enc_in_channels = enc_block_filter_num//2
+                else:
+                    enc_in_channels = enc_block_filter_num  # In the 3D UNet arch, the encoder features double in the 2nd convolution op
+
+            if self.mode == '2D':
+                self.enc_layer_depths.append(enc_block_filter_num)
+            else:
+                self.enc_layer_depths.append(enc_block_filter_num*2)
+
             self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
                                                       filter_num=enc_block_filter_num,
                                                       use_bn=self.use_bn))
 
         # Bottleneck layer
-        bottle_neck_filter_num = self.enc_layer_depths[-1]*2
-        bottle_neck_in_channels = self.enc_layer_depths[-1]
-        self.bottle_neck_layer = self.encoder(filter_num=bottle_neck_filter_num,
-                                              in_channels=bottle_neck_in_channels,
-                                              use_bn=self.use_bn)
+        if self.mode == '2D':
+            bottle_neck_filter_num = self.enc_layer_depths[-1]*2
+            bottle_neck_in_channels = self.enc_layer_depths[-1]
+            self.bottle_neck_layer = self.encoder(filter_num=bottle_neck_filter_num,
+                                                  in_channels=bottle_neck_in_channels,
+                                                  use_bn=self.use_bn)
+        else:  # Modified for the 3D UNet architecture
+            bottle_neck_in_channels = self.enc_layer_depths[-1]
+            bottle_neck_filter_num = self.enc_layer_depths[-1]*2
+            self.bottle_neck_layer =  nn.Sequential(nn.Conv3d(in_channels=bottle_neck_in_channels,
+                                                              out_channels=bottle_neck_in_channels,
+                                                              kernel_size=3,
+                                                              padding=1),
+
+                                                    nn.BatchNorm3d(num_features=bottle_neck_in_channels),
+
+                                                    nn.ReLU(),
+
+                                                    nn.Conv3d(in_channels=bottle_neck_in_channels,
+                                                              out_channels=bottle_neck_filter_num,
+                                                              kernel_size=3,
+                                                              padding=1),
+
+                                                    nn.BatchNorm3d(num_features=bottle_neck_filter_num),
+
+                                                    nn.ReLU())
 
         # Decoder Path
         for block_id in range(num_blocks):
@@ -112,6 +141,7 @@ class UNet(nn.Module):
         # Output
         x = self.output(x)
 
+
         # Interpolate to match the size of seg-map
         if self.mode == '2D':
             out = F.interpolate(input=x,
@@ -122,8 +152,6 @@ class UNet(nn.Module):
             out = F.interpolate(input=x,
                                 size=(d, h, w),
                                 mode='nearest')  # 'bilinear' is not supported by PyTorch for volumetric data
-
-        out = F.relu(out)
 
         return out
 

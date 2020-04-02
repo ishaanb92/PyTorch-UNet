@@ -136,7 +136,7 @@ class EncoderBlock3D(nn.Module):
         use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
 
     """
-    def __init__(self, filter_num=64, in_channels=1, use_bn=False):
+    def __init__(self, filter_num=64, in_channels=1, use_bn=True):
 
         super(EncoderBlock3D, self).__init__()
         self.use_bn = use_bn
@@ -149,13 +149,13 @@ class EncoderBlock3D(nn.Module):
                                padding=1)
 
         self.conv2 = nn.Conv3d(in_channels=self.filter_num,
-                               out_channels=self.filter_num,
+                               out_channels=self.filter_num*2,
                                kernel_size=3,
                                padding=1)
 
         if self.use_bn is True:
             self.bn_op_1 = nn.BatchNorm3d(num_features=self.filter_num)
-            self.bn_op_2 = nn.BatchNorm3d(num_features=self.filter_num)
+            self.bn_op_2 = nn.BatchNorm3d(num_features=self.filter_num*2)
 
     def forward(self, x):
 
@@ -209,9 +209,23 @@ class DecoderBlock3D(nn.Module):
                                                 out_channels=self.in_channels,
                                                 kernel_size=2)
 
-        self.down_sample = EncoderBlock3D(in_channels=self.in_channels+self.concat_layer_depth,
-                                          filter_num=self.filter_num,
-                                          use_bn=use_bn)
+        self.down_sample = nn.Sequential(nn.Conv3d(in_channels=self.in_channels+self.concat_layer_depth,
+                                                   out_channels=self.filter_num,
+                                                   kernel_size=3,
+                                                   padding=1),
+
+                                        nn.BatchNorm3d(num_features=self.filter_num),
+
+                                        nn.ReLU(),
+
+                                        nn.Conv3d(in_channels=self.filter_num,
+                                                  out_channels=self.filter_num,
+                                                  kernel_size=3,
+                                                  padding=1),
+
+                                        nn.BatchNorm3d(num_features=self.filter_num),
+
+                                        nn.ReLU())
 
     def forward(self, x, skip_layer):
         up_sample_out = F.relu(self.up_sample(x))
