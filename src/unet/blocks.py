@@ -82,7 +82,7 @@ class DecoderBlock(nn.Module):
 
                                            nn.Conv2d(in_channels=self.in_channels,
                                                      out_channels=self.in_channels,
-                                                     kernel_size=1,
+                                                     kernel_size=3,
                                                      padding=1)
                                            )
 
@@ -90,7 +90,8 @@ class DecoderBlock(nn.Module):
             # Upsample via transposed convolution (know to produce artifacts)
             self.up_sample = nn.ConvTranspose2d(in_channels=self.in_channels,
                                                 out_channels=self.in_channels,
-                                                kernel_size=2)
+                                                kernel_size=3,
+                                                stride=2)
 
         self.down_sample = EncoderBlock(in_channels=self.in_channels+self.concat_layer_depth,
                                         filter_num=self.filter_num,
@@ -199,7 +200,7 @@ class DecoderBlock3D(nn.Module):
 
                                            nn.Conv3d(in_channels=self.in_channels,
                                                      out_channels=self.in_channels,
-                                                     kernel_size=1,
+                                                     kernel_size=3,
                                                      padding=1)
                                            )
 
@@ -207,7 +208,8 @@ class DecoderBlock3D(nn.Module):
             # Upsample via transposed convolution (know to produce artifacts)
             self.up_sample = nn.ConvTranspose3d(in_channels=self.in_channels,
                                                 out_channels=self.in_channels,
-                                                kernel_size=2)
+                                                kernel_size=3,
+                                                stride=2)
 
         self.down_sample = nn.Sequential(nn.Conv3d(in_channels=self.in_channels+self.concat_layer_depth,
                                                    out_channels=self.filter_num,
@@ -229,14 +231,15 @@ class DecoderBlock3D(nn.Module):
 
     def forward(self, x, skip_layer):
         up_sample_out = F.relu(self.up_sample(x))
-        padded_up_sample_layer = self.pad_before_merge_3d(up_sample_out, skip_layer)
-        merged_out = torch.cat([padded_up_sample_layer, skip_layer], dim=1)
+        merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
         out = self.down_sample(merged_out)
         return out
+
 
     @staticmethod
     def pad_before_merge_3d(up_sample_layer, skip_layer):
         """
+        FIXME: DEPRECATED!! DO NOT USE THIS FUNCTION
         Pads the up sampled layer to match the dims (H,W)
         of the skip layer before concatenation
         Source: https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py
@@ -250,12 +253,12 @@ class DecoderBlock3D(nn.Module):
 
 
         """
-        diffY = int(skip_layer.size()[-2] - up_sample_layer.size()[-2])
-        diffX = int(skip_layer.size()[-1] - up_sample_layer.size()[-1])
-        diffZ = int(skip_layer.size()[-3] - up_sample_layer.size()[-3])
+        diffY = (skip_layer.size()[-2] - up_sample_layer.size()[-2])
+        diffX = (skip_layer.size()[-1] - up_sample_layer.size()[-1])
+        diffZ = (skip_layer.size()[-3] - up_sample_layer.size()[-3])
         padded_up_sample_layer = F.pad(up_sample_layer, (diffZ//2, diffZ - diffZ//2,
-                                                         diffX // 2, diffX - diffX//2,
-                                                         diffY // 2, diffY - diffY//2))
+                                                         diffY// 2, diffY - diffY//2,
+                                                         diffX// 2, diffX - diffX//2))
         return padded_up_sample_layer
 
 

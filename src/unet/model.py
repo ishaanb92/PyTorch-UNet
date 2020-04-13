@@ -126,7 +126,7 @@ class UNet(nn.Module):
 
         # Encoder
         enc_outputs = []
-        for enc_op in self.contracting_path:
+        for stage, enc_op in enumerate(self.contracting_path):
             x = enc_op(x)
             enc_outputs.append(x)
             x = self.pool(kernel_size=2)(x)
@@ -141,19 +141,7 @@ class UNet(nn.Module):
         # Output
         x = self.output(x)
 
-
-        # Interpolate to match the size of seg-map
-        if self.mode == '2D':
-            out = F.interpolate(input=x,
-                                size=(h, w),
-                                mode='bilinear',
-                                align_corners=True)
-        else:
-            out = F.interpolate(input=x,
-                                size=(d, h, w),
-                                mode='nearest')  # 'bilinear' is not supported by PyTorch for volumetric data
-
-        return out
+        return x
 
 
 
