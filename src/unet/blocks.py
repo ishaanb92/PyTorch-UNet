@@ -91,7 +91,9 @@ class DecoderBlock(nn.Module):
             self.up_sample = nn.ConvTranspose2d(in_channels=self.in_channels,
                                                 out_channels=self.in_channels,
                                                 kernel_size=3,
-                                                stride=2)
+                                                stride=2,
+                                                padding=1,
+                                                output_padding=1)
 
         self.down_sample = EncoderBlock(in_channels=self.in_channels+self.concat_layer_depth,
                                         filter_num=self.filter_num,
@@ -99,8 +101,7 @@ class DecoderBlock(nn.Module):
 
     def forward(self, x, skip_layer):
         up_sample_out = F.relu(self.up_sample(x))
-        padded_up_sample_layer = self.pad_before_merge(up_sample_out, skip_layer)
-        merged_out = torch.cat([padded_up_sample_layer, skip_layer], dim=1)
+        merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
         out = self.down_sample(merged_out)
         return out
 
@@ -185,7 +186,7 @@ class DecoderBlock3D(nn.Module):
         use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
 
     """
-    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=True, use_bn=True):
+    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, use_bn=True):
 
         # Up-sampling (interpolation or transposed conv) --> EncoderBlock
         super(DecoderBlock3D, self).__init__()
@@ -209,7 +210,9 @@ class DecoderBlock3D(nn.Module):
             self.up_sample = nn.ConvTranspose3d(in_channels=self.in_channels,
                                                 out_channels=self.in_channels,
                                                 kernel_size=3,
-                                                stride=2)
+                                                stride=2,
+                                                padding=1,
+                                                output_padding=1)
 
         self.down_sample = nn.Sequential(nn.Conv3d(in_channels=self.in_channels+self.concat_layer_depth,
                                                    out_channels=self.filter_num,
