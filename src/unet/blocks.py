@@ -73,58 +73,40 @@ class DecoderBlock(nn.Module):
         self.filter_num = int(filter_num)
         self.in_channels = int(in_channels)
         self.concat_layer_depth = int(concat_layer_depth)
+        self.interpolate = interpolate
 
-        if interpolate:
-            # Upsample by interpolation followed by a 1x1 convolution to obtain desired depth
-            self.up_sample = nn.Sequential(nn.Upsample(scale_factor=2,
-                                                       mode='bilinear',
-                                                       align_corners=True),
+        # Upsample by interpolation followed by a 3x3 convolution to obtain desired depth
+        self.up_sample_interpolate = nn.Sequential(nn.Upsample(scale_factor=2,
+                                                               mode='bilinear',
+                                                               align_corners=True),
 
-                                           nn.Conv2d(in_channels=self.in_channels,
-                                                     out_channels=self.in_channels,
-                                                     kernel_size=3,
-                                                     padding=1)
-                                           )
+                                                   nn.Conv2d(in_channels=self.in_channels,
+                                                             out_channels=self.in_channels,
+                                                             kernel_size=3,
+                                                             padding=1)
+                                                  )
 
-        else:
-            # Upsample via transposed convolution (know to produce artifacts)
-            self.up_sample = nn.ConvTranspose2d(in_channels=self.in_channels,
-                                                out_channels=self.in_channels,
-                                                kernel_size=3,
-                                                stride=2,
-                                                padding=1,
-                                                output_padding=1)
+        # Upsample via transposed convolution (know to produce artifacts)
+        self.up_sample_tranposed = nn.ConvTranspose2d(in_channels=self.in_channels,
+                                                      out_channels=self.in_channels,
+                                                      kernel_size=3,
+                                                      stride=2,
+                                                      padding=1,
+                                                      output_padding=1)
 
         self.down_sample = EncoderBlock(in_channels=self.in_channels+self.concat_layer_depth,
                                         filter_num=self.filter_num,
                                         use_bn=use_bn)
 
     def forward(self, x, skip_layer):
-        up_sample_out = F.relu(self.up_sample(x))
+        if self.interpolate is True:
+            up_sample_out = F.relu(self.up_sample_interpolate(x))
+        else:
+            up_sample_out = F.relu(self.up_sample_tranposed(x))
+
         merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
         out = self.down_sample(merged_out)
         return out
-
-    @staticmethod
-    def pad_before_merge(up_sample_layer, skip_layer):
-        """
-        Pads the up sampled layer to match the dims (H,W)
-        of the skip layer before concatenation
-        Source: https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py
-        Parameters:
-            up_sample_layer (torch.Tensor) : Tensor holding the upsampled layer
-            skip_layer (torch.Tensor) : Tensor holding the skip layer that needs to concatenated
-
-        Returns:
-            padded_up_sample_layer (torch.Tensor) : Padded tensor that can be merged
-
-
-
-        """
-        diffY = skip_layer.size()[2] - up_sample_layer.size()[2]
-        diffX = skip_layer.size()[3] - up_sample_layer.size()[3]
-        padded_up_sample_layer = F.pad(up_sample_layer, (diffX // 2, diffX - diffX//2,diffY // 2, diffY - diffY//2))
-        return padded_up_sample_layer
 
 
 class EncoderBlock3D(nn.Module):
@@ -193,26 +175,25 @@ class DecoderBlock3D(nn.Module):
         self.filter_num = int(filter_num)
         self.in_channels = int(in_channels)
         self.concat_layer_depth = int(concat_layer_depth)
+        self.interpolate = interpolate
 
-        if interpolate:
-            # Upsample by interpolation followed by a 1x1 convolution to obtain desired depth
-            self.up_sample = nn.Sequential(nn.Upsample(scale_factor=2,
-                                                       mode='nearest'),
+        # Upsample by interpolation followed by a 3x3x3 convolution to obtain desired depth
+        self.up_sample_interpolate = nn.Sequential(nn.Upsample(scale_factor=2,
+                                                               mode='nearest'),
 
-                                           nn.Conv3d(in_channels=self.in_channels,
-                                                     out_channels=self.in_channels,
-                                                     kernel_size=3,
-                                                     padding=1)
-                                           )
+                                                  nn.Conv3d(in_channels=self.in_channels,
+                                                            out_channels=self.in_channels,
+                                                            kernel_size=3,
+                                                            padding=1)
+                                                 )
 
-        else:
-            # Upsample via transposed convolution (know to produce artifacts)
-            self.up_sample = nn.ConvTranspose3d(in_channels=self.in_channels,
-                                                out_channels=self.in_channels,
-                                                kernel_size=3,
-                                                stride=2,
-                                                padding=1,
-                                                output_padding=1)
+        # Upsample via transposed convolution (know to produce artifacts)
+        self.up_sample_transposed = nn.ConvTranspose3d(in_channels=self.in_channels,
+                                                       out_channels=self.in_channels,
+                                                       kernel_size=3,
+                                                       stride=2,
+                                                       padding=1,
+                                                       output_padding=1)
 
         self.down_sample = nn.Sequential(nn.Conv3d(in_channels=self.in_channels+self.concat_layer_depth,
                                                    out_channels=self.filter_num,
@@ -233,39 +214,13 @@ class DecoderBlock3D(nn.Module):
                                         nn.ReLU())
 
     def forward(self, x, skip_layer):
-        up_sample_out = F.relu(self.up_sample(x))
+
+        if self.interpolate is True:
+            up_sample_out = F.relu(self.up_sample_interpolate(x))
+        else:
+            up_sample_out = F.relu(self.up_sample_transposed(x))
+
         merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
         out = self.down_sample(merged_out)
         return out
-
-
-    @staticmethod
-    def pad_before_merge_3d(up_sample_layer, skip_layer):
-        """
-        FIXME: DEPRECATED!! DO NOT USE THIS FUNCTION
-        Pads the up sampled layer to match the dims (H,W)
-        of the skip layer before concatenation
-        Source: https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py
-        Parameters:
-            up_sample_layer (torch.Tensor) : Tensor holding the upsampled layer
-            skip_layer (torch.Tensor) : Tensor holding the skip layer that needs to concatenated
-
-        Returns:
-            padded_up_sample_layer (torch.Tensor) : Padded tensor that can be merged
-
-
-
-        """
-        diffY = (skip_layer.size()[-2] - up_sample_layer.size()[-2])
-        diffX = (skip_layer.size()[-1] - up_sample_layer.size()[-1])
-        diffZ = (skip_layer.size()[-3] - up_sample_layer.size()[-3])
-        padded_up_sample_layer = F.pad(up_sample_layer, (diffZ//2, diffZ - diffZ//2,
-                                                         diffY// 2, diffY - diffY//2,
-                                                         diffX// 2, diffX - diffX//2))
-        return padded_up_sample_layer
-
-
-
-
-
 
