@@ -57,6 +57,21 @@ For more information about various instantiation arguments:
 ```python
 from unet.model import UNet
 print(UNet.__doc__)
+     PyTorch class definition for the U-Net architecture for image segmentation
+
+     Parameters:
+         n_channels (int) : Number of image channels
+         base_filter_num (int) : Number of filters for the first convolution (doubled for every subsequent block)
+         num_blocks (int) : Number of encoder/decoder blocks
+         num_classes(int) : Number of classes that need to be segmented
+         mode (str): 2D or 3D
+         use_bn (bool): Flag to activate BatchNorm after convolution op
+         use_pooling (bool): Set to 'True' to use MaxPool as downnsampling op.
+                             If 'False', strided convolution would be used to downsample feature maps (http://arxiv.org/abs/1908.02182)
+
+     Returns:
+         out (torch.Tensor) : Prediction of the segmentation map
+
 ```
 This package is exclusively tested on Python 3.7.3 and PyTorch 1.1.0 
 
