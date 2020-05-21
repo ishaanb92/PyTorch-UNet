@@ -1,6 +1,7 @@
 """
-A PyTorch Implementation of a U-Net
-http://arxiv.org/abs/1505.04597
+A PyTorch Implementation of a U-Net.
+
+Supports 2D (https://arxiv.org/abs/1505.04597) and 3D(https://arxiv.org/abs/1606.06650) variants
 
 Author: Ishaan Bhat
 Email: ishaan@isi.uu.nl
@@ -15,23 +16,26 @@ class UNet(nn.Module):
      PyTorch class definition for the U-Net architecture for image segmentation
 
      Parameters:
-         image_size (int) : Height or width of a square image (assumes image is square)
-         n_channels (int) : Number of image channels (3 for RGB, 1 for grayscale)
+         n_channels (int) : Number of image channels
          base_filter_num (int) : Number of filters for the first convolution (doubled for every subsequent block)
          num_blocks (int) : Number of encoder/decoder blocks
          num_classes(int) : Number of classes that need to be segmented
          mode (str): 2D or 3D
+         use_bn (bool): Flag to activate BatchNorm after convolution op
+         use_pooling (bool): Set to 'True' to use MaxPool as downnsampling op.
+                             If 'False', strided convolution would be used to downsample feature maps (http://arxiv.org/abs/1908.02182)
 
      Returns:
          out (torch.Tensor) : Prediction of the segmentation map
 
      """
-    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D'):
+    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D', use_pooling=True):
 
         super(UNet, self).__init__()
         self.use_bn = use_bn
         self.contracting_path = nn.ModuleList()
         self.expanding_path = nn.ModuleList()
+        self.downsampling_ops = nn.ModuleList()
 
         self.num_blocks = num_blocks
         self.n_channels = int(n_channels)
@@ -39,11 +43,13 @@ class UNet(nn.Module):
         self.base_filter_num = int(base_filter_num)
         self.enc_layer_depths = []  # Keep track of the output depths of each encoder block
         self.mode = mode
+        self.use_pooling = use_pooling
 
         if mode == '2D':
             self.encoder = EncoderBlock
             self.decoder = DecoderBlock
             self.pool = nn.MaxPool2d
+
         elif mode == '3D':
             self.encoder = EncoderBlock3D
             self.decoder = DecoderBlock3D
@@ -52,7 +58,7 @@ class UNet(nn.Module):
             print('{} mode is invalid'.format(mode))
 
         for block_id in range(num_blocks):
-            enc_block_filter_num = int(pow(2, block_id)*self.base_filter_num)  # Output depth of current encoder stage (for 2D UNet)
+            enc_block_filter_num = int(pow(2, block_id)*self.base_filter_num)  # Output depth of current encoder stage of the 2-D variant
             if block_id == 0:
                 enc_in_channels = self.n_channels
             else:
@@ -61,14 +67,25 @@ class UNet(nn.Module):
                 else:
                     enc_in_channels = enc_block_filter_num  # In the 3D UNet arch, the encoder features double in the 2nd convolution op
 
-            if self.mode == '2D':
-                self.enc_layer_depths.append(enc_block_filter_num)
-            else:
-                self.enc_layer_depths.append(enc_block_filter_num*2)
 
             self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
                                                       filter_num=enc_block_filter_num,
                                                       use_bn=self.use_bn))
+            if self.mode == '2D':
+                self.enc_layer_depths.append(enc_block_filter_num)
+                self.downsampling_ops.append(nn.Conv2d(in_channels=self.enc_layer_depths[-1],
+                                                       out_channels=self.enc_layer_depths[-1],
+                                                       kernel_size=3,
+                                                       stride=2,
+                                                       padding=1))
+            else:
+                self.enc_layer_depths.append(enc_block_filter_num*2) # Specific to 3D U-Net architecture (due to doubling of #feature_maps inside the 3-D Encoder)
+                self.downsampling_ops.append(nn.Conv3d(in_channels=self.enc_layer_depths[-1],
+                                                       out_channels=self.enc_layer_depths[-1],
+                                                       kernel_size=3,
+                                                       stride=2,
+                                                       padding=1))
+
 
         # Bottleneck layer
         if self.mode == '2D':
@@ -87,7 +104,7 @@ class UNet(nn.Module):
 
                                                     nn.BatchNorm3d(num_features=bottle_neck_in_channels),
 
-                                                    nn.ReLU(),
+                                                    nn.LeakyReLU(),
 
                                                     nn.Conv3d(in_channels=bottle_neck_in_channels,
                                                               out_channels=bottle_neck_filter_num,
@@ -96,7 +113,7 @@ class UNet(nn.Module):
 
                                                     nn.BatchNorm3d(num_features=bottle_neck_filter_num),
 
-                                                    nn.ReLU())
+                                                    nn.LeakyReLU())
 
         # Decoder Path
         for block_id in range(num_blocks):
@@ -129,7 +146,12 @@ class UNet(nn.Module):
         for stage, enc_op in enumerate(self.contracting_path):
             x = enc_op(x)
             enc_outputs.append(x)
-            x = self.pool(kernel_size=2)(x)
+
+            if self.use_pooling is True:
+                x = self.pool(kernel_size=2)(x)
+            else:
+                x = self.downsampling_ops[stage](x)
+
 
         # Bottle-neck layer
         x = self.bottle_neck_layer(x)

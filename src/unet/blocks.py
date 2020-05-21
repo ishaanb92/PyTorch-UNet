@@ -44,12 +44,12 @@ class EncoderBlock(nn.Module):
         x = self.conv1(x)
         if self.use_bn is True:
             x = self.bn_op_1(x)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
 
         x = self.conv2(x)
         if self.use_bn is True:
             x = self.bn_op_2(x)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
 
         return x
 
@@ -100,9 +100,9 @@ class DecoderBlock(nn.Module):
 
     def forward(self, x, skip_layer):
         if self.interpolate is True:
-            up_sample_out = F.relu(self.up_sample_interpolate(x))
+            up_sample_out = F.leaky_relu(self.up_sample_interpolate(x))
         else:
-            up_sample_out = F.relu(self.up_sample_tranposed(x))
+            up_sample_out = F.leaky_relu(self.up_sample_tranposed(x))
 
         merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
         out = self.down_sample(merged_out)
@@ -146,12 +146,12 @@ class EncoderBlock3D(nn.Module):
         x = self.conv1(x)
         if self.use_bn is True:
             x = self.bn_op_1(x)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
 
         x = self.conv2(x)
         if self.use_bn is True:
             x = self.bn_op_2(x)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
 
         return x
 
@@ -202,7 +202,7 @@ class DecoderBlock3D(nn.Module):
 
                                         nn.BatchNorm3d(num_features=self.filter_num),
 
-                                        nn.ReLU(),
+                                        nn.LeakyReLU(),
 
                                         nn.Conv3d(in_channels=self.filter_num,
                                                   out_channels=self.filter_num,
@@ -211,14 +211,14 @@ class DecoderBlock3D(nn.Module):
 
                                         nn.BatchNorm3d(num_features=self.filter_num),
 
-                                        nn.ReLU())
+                                        nn.LeakyReLU())
 
     def forward(self, x, skip_layer):
 
         if self.interpolate is True:
-            up_sample_out = F.relu(self.up_sample_interpolate(x))
+            up_sample_out = F.leaky_relu(self.up_sample_interpolate(x))
         else:
-            up_sample_out = F.relu(self.up_sample_transposed(x))
+            up_sample_out = F.leaky_relu(self.up_sample_transposed(x))
 
         merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
         out = self.down_sample(merged_out)

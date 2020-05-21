@@ -2,7 +2,8 @@ U-Net - PyTorch Implementation
 ============================== 
 
 Implementation of the [U-Net](http://arxiv.org/abs/1505.04597) model, a popular image segmentation network.
-This is quite stable and configurable, I've used it across multiple datasets and as a component in a couple of projects. 
+This is quite stable and configurable, I've used it across multiple datasets and as a component in a couple of projects.
+Update: Also supports segmentation of 3-D volumes based on the [3-D UNet architecture](https://arxiv.org/abs/1606.06650)
 
 
 
@@ -44,10 +45,12 @@ Example Usage
 from unet.model import UNet
 ...
 
-model = UNet(image_size=256,
+model = UNet(n_channels=1,
              num_classes=2,
              use_bn=True,
-             n_channels=6)
+             mode='2D',
+             use_pooling=False
+             )
 ```
 
 For more information about various instantiation arguments:
