@@ -73,18 +73,22 @@ class UNet(nn.Module):
                                                       use_bn=self.use_bn))
             if self.mode == '2D':
                 self.enc_layer_depths.append(enc_block_filter_num)
-                self.downsampling_ops.append(nn.Conv2d(in_channels=self.enc_layer_depths[-1],
-                                                       out_channels=self.enc_layer_depths[-1],
-                                                       kernel_size=3,
-                                                       stride=2,
-                                                       padding=1))
+                self.downsampling_ops.append(nn.Sequential(nn.Conv2d(in_channels=self.enc_layer_depths[-1],
+                                                                     out_channels=self.enc_layer_depths[-1],
+                                                                     kernel_size=3,
+                                                                     stride=2,
+                                                                     padding=1),
+                                                            nn.BatchNorm2d(num_features=self.filter_num),
+                                                            nn.LeakyReLU()))
             else:
                 self.enc_layer_depths.append(enc_block_filter_num*2) # Specific to 3D U-Net architecture (due to doubling of #feature_maps inside the 3-D Encoder)
-                self.downsampling_ops.append(nn.Conv3d(in_channels=self.enc_layer_depths[-1],
-                                                       out_channels=self.enc_layer_depths[-1],
-                                                       kernel_size=3,
-                                                       stride=2,
-                                                       padding=1))
+                self.downsampling_ops.append(nn.Sequential(nn.Conv3d(in_channels=self.enc_layer_depths[-1],
+                                                                     out_channels=self.enc_layer_depths[-1],
+                                                                     kernel_size=3,
+                                                                     stride=2,
+                                                                     padding=1),
+                                                            nn.BatchNorm3d(num_features=self.enc_layer_depths[-1]),
+                                                            nn.LeakyReLU()))
 
 
         # Bottleneck layer
@@ -151,7 +155,6 @@ class UNet(nn.Module):
                 x = self.pool(kernel_size=2)(x)
             else:
                 x = self.downsampling_ops[stage](x)
-
 
         # Bottle-neck layer
         x = self.bottle_neck_layer(x)
