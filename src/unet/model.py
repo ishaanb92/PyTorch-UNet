@@ -26,7 +26,7 @@ class UNet(nn.Module):
          out (torch.Tensor) : Prediction of the segmentation map
 
      """
-    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D'):
+    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D', dropout=False):
 
         super(UNet, self).__init__()
         self.use_bn = use_bn
@@ -39,6 +39,7 @@ class UNet(nn.Module):
         self.base_filter_num = int(base_filter_num)
         self.enc_layer_depths = []  # Keep track of the output depths of each encoder block
         self.mode = mode
+        self.dropout = dropout
 
         if mode == '2D':
             self.encoder = EncoderBlock
@@ -66,9 +67,17 @@ class UNet(nn.Module):
             else:
                 self.enc_layer_depths.append(enc_block_filter_num*2)
 
-            self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
-                                                      filter_num=enc_block_filter_num,
-                                                      use_bn=self.use_bn))
+            # Dropout only applied to central encoder blocks -- See BayesianSegNet by Kendall et al.
+            if self.dropout is True and block_id >= num_blocks/2:
+                self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
+                                                          filter_num=enc_block_filter_num,
+                                                          use_bn=self.use_bn,
+                                                          dropout=True))
+            else:
+                self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
+                                                          filter_num=enc_block_filter_num,
+                                                          use_bn=self.use_bn,
+                                                          dropout=False))
 
         # Bottleneck layer
         if self.mode == '2D':
@@ -101,11 +110,20 @@ class UNet(nn.Module):
         # Decoder Path
         for block_id in range(num_blocks):
             dec_in_channels = int(bottle_neck_filter_num//pow(2, block_id))
-            self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
-                                                    filter_num=self.enc_layer_depths[-1-block_id],
-                                                    concat_layer_depth=self.enc_layer_depths[-1-block_id],
-                                                    interpolate=False,
-                                                    use_bn=self.use_bn))
+            if self.dropout is True and block_id <= num_blocks/2:
+                self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
+                                                        filter_num=self.enc_layer_depths[-1-block_id],
+                                                        concat_layer_depth=self.enc_layer_depths[-1-block_id],
+                                                        interpolate=False,
+                                                        use_bn=self.use_bn,
+                                                        dropout=True))
+            else:
+                self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
+                                                        filter_num=self.enc_layer_depths[-1-block_id],
+                                                        concat_layer_depth=self.enc_layer_depths[-1-block_id],
+                                                        interpolate=False,
+                                                        use_bn=self.use_bn,
+                                                        dropout=False))
 
         # Output Layer
         if mode == '2D':
