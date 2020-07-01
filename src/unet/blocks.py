@@ -16,15 +16,18 @@ class EncoderBlock(nn.Module):
         filter_num (int) : Number of filters used in the convolution ops inside the block,
                              depth of the output of the enc block
         use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
+        dropout(bool) : Flag to decide whether a dropout layer should be applied
+        dropout_rate (float) : Probability of dropping a convolution output feature channel
 
     """
-    def __init__(self, filter_num=64, in_channels=1, use_bn=False, dropout=False):
+    def __init__(self, filter_num=64, in_channels=1, use_bn=False, dropout=False, dropout_rate=0.3):
 
         super(EncoderBlock,self).__init__()
         self.use_bn = use_bn
         self.filter_num = int(filter_num)
         self.in_channels = int(in_channels)
         self.dropout = dropout
+        self.dropout_rate = dropout_rate
 
         self.conv1 = nn.Conv2d(in_channels=self.in_channels,
                                out_channels=self.filter_num,
@@ -47,14 +50,14 @@ class EncoderBlock(nn.Module):
             x = self.bn_op_1(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = F.dropout2d(x, p=0.3)
+            x = F.dropout2d(x, p=self.dropout_rate)
 
         x = self.conv2(x)
         if self.use_bn is True:
             x = self.bn_op_2(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = F.dropout2d(x, p=0.3)
+            x = F.dropout2d(x, p=self.dropout_rate)
 
         return x
 
@@ -69,9 +72,11 @@ class DecoderBlock(nn.Module):
         filter_num (int) : Number of filters used in convolution, the depth of the output of the dec block
         interpolate (bool) : Decides if upsampling needs to performed via interpolation or transposed convolution
         use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
+        dropout(bool) : Flag to decide whether a dropout layer should be applied
+        dropout_rate (float) : Probability of dropping a convolution output feature channel
 
     """
-    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, use_bn=False, dropout=False):
+    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, use_bn=False, dropout=False, dropout_rate=0.3):
 
         # Up-sampling (interpolation or transposed conv) --> EncoderBlock
         super(DecoderBlock, self).__init__()
@@ -80,6 +85,7 @@ class DecoderBlock(nn.Module):
         self.concat_layer_depth = int(concat_layer_depth)
         self.interpolate = interpolate
         self.dropout = dropout
+        self.dropout_rate = dropout_rate
 
         # Upsample by interpolation followed by a 3x3 convolution to obtain desired depth
         self.up_sample_interpolate = nn.Sequential(nn.Upsample(scale_factor=2,
@@ -103,7 +109,8 @@ class DecoderBlock(nn.Module):
         self.down_sample = EncoderBlock(in_channels=self.in_channels+self.concat_layer_depth,
                                         filter_num=self.filter_num,
                                         use_bn=use_bn,
-                                        dropout=self.dropout)
+                                        dropout=self.dropout,
+                                        dropout_rate=self.dropout_rate)
 
     def forward(self, x, skip_layer):
         if self.interpolate is True:
