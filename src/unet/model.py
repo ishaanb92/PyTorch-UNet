@@ -44,7 +44,7 @@ class UNet(nn.Module):
         self.base_filter_num = int(base_filter_num)
         self.enc_layer_depths = []  # Keep track of the output depths of each encoder block
         self.mode = mode
-        self.use_pooling = use_pooling
+        self.pooling = use_pooling
         self.dropout = dropout
         self.dropout_rate = dropout_rate
 
@@ -174,7 +174,7 @@ class UNet(nn.Module):
             x = enc_op(x)
             enc_outputs.append(x)
 
-            if self.use_pooling is True:
+            if self.pooling is True:
                 x = self.pool(kernel_size=2)(x)
             else:
                 x = self.downsampling_ops[stage](x)
