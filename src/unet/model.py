@@ -24,12 +24,13 @@ class UNet(nn.Module):
          use_bn (bool): Flag to activate BatchNorm after convolution op
          use_pooling (bool): Set to 'True' to use MaxPool as downnsampling op.
                              If 'False', strided convolution would be used to downsample feature maps (http://arxiv.org/abs/1908.02182)
-
+         dropout (bool) : Whether dropout should be added to central encoder and decoder blocks (eg: BayesianSegNet)
+         dropout_rate (float) : Dropout probability
      Returns:
          out (torch.Tensor) : Prediction of the segmentation map
 
      """
-    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D', use_pooling=True):
+    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D', dropout=False, dropout_rate=0.3, use_pooling=True):
 
         super(UNet, self).__init__()
         self.use_bn = use_bn
@@ -44,6 +45,8 @@ class UNet(nn.Module):
         self.enc_layer_depths = []  # Keep track of the output depths of each encoder block
         self.mode = mode
         self.use_pooling = use_pooling
+        self.dropout = dropout
+        self.dropout_rate = dropout_rate
 
         if mode == '2D':
             self.encoder = EncoderBlock
@@ -68,28 +71,38 @@ class UNet(nn.Module):
                     enc_in_channels = enc_block_filter_num  # In the 3D UNet arch, the encoder features double in the 2nd convolution op
 
 
-            self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
-                                                      filter_num=enc_block_filter_num,
-                                                      use_bn=self.use_bn))
+            # Dropout only applied to central encoder blocks -- See BayesianSegNet by Kendall et al.
+            if self.dropout is True and block_id >= num_blocks/2:
+                self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
+                                                          filter_num=enc_block_filter_num,
+                                                          use_bn=self.use_bn,
+                                                          dropout=True,
+                                                          dropout_rate=self.dropout_rate))
+            else:
+                self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
+                                                          filter_num=enc_block_filter_num,
+                                                          use_bn=self.use_bn,
+                                                          dropout=False))
             if self.mode == '2D':
                 self.enc_layer_depths.append(enc_block_filter_num)
-                self.downsampling_ops.append(nn.Sequential(nn.Conv2d(in_channels=self.enc_layer_depths[-1],
-                                                                     out_channels=self.enc_layer_depths[-1],
-                                                                     kernel_size=3,
-                                                                     stride=2,
-                                                                     padding=1),
-                                                            nn.BatchNorm2d(num_features=self.filter_num),
-                                                            nn.LeakyReLU()))
+                if self.pooling is False:
+                    self.downsampling_ops.append(nn.Sequential(nn.Conv2d(in_channels=self.enc_layer_depths[-1],
+                                                                         out_channels=self.enc_layer_depths[-1],
+                                                                         kernel_size=3,
+                                                                         stride=2,
+                                                                         padding=1),
+                                                                nn.BatchNorm2d(num_features=self.filter_num),
+                                                                nn.LeakyReLU()))
             else:
                 self.enc_layer_depths.append(enc_block_filter_num*2) # Specific to 3D U-Net architecture (due to doubling of #feature_maps inside the 3-D Encoder)
-                self.downsampling_ops.append(nn.Sequential(nn.Conv3d(in_channels=self.enc_layer_depths[-1],
-                                                                     out_channels=self.enc_layer_depths[-1],
-                                                                     kernel_size=3,
-                                                                     stride=2,
-                                                                     padding=1),
-                                                            nn.BatchNorm3d(num_features=self.enc_layer_depths[-1]),
-                                                            nn.LeakyReLU()))
-
+                if self.pooling is False:
+                    self.downsampling_ops.append(nn.Sequential(nn.Conv3d(in_channels=self.enc_layer_depths[-1],
+                                                                         out_channels=self.enc_layer_depths[-1],
+                                                                         kernel_size=3,
+                                                                         stride=2,
+                                                                         padding=1),
+                                                                nn.BatchNorm3d(num_features=self.enc_layer_depths[-1]),
+                                                                nn.LeakyReLU()))
 
         # Bottleneck layer
         if self.mode == '2D':
@@ -122,11 +135,21 @@ class UNet(nn.Module):
         # Decoder Path
         for block_id in range(num_blocks):
             dec_in_channels = int(bottle_neck_filter_num//pow(2, block_id))
-            self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
-                                                    filter_num=self.enc_layer_depths[-1-block_id],
-                                                    concat_layer_depth=self.enc_layer_depths[-1-block_id],
-                                                    interpolate=False,
-                                                    use_bn=self.use_bn))
+            if self.dropout is True and block_id <= num_blocks/2:
+                self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
+                                                        filter_num=self.enc_layer_depths[-1-block_id],
+                                                        concat_layer_depth=self.enc_layer_depths[-1-block_id],
+                                                        interpolate=False,
+                                                        use_bn=self.use_bn,
+                                                        dropout=True,
+                                                        dropout_rate=self.dropout_rate))
+            else:
+                self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
+                                                        filter_num=self.enc_layer_depths[-1-block_id],
+                                                        concat_layer_depth=self.enc_layer_depths[-1-block_id],
+                                                        interpolate=False,
+                                                        use_bn=self.use_bn,
+                                                        dropout=False))
 
         # Output Layer
         if mode == '2D':
