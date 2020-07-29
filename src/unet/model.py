@@ -91,7 +91,7 @@ class UNet(nn.Module):
                                                                          kernel_size=3,
                                                                          stride=2,
                                                                          padding=1),
-                                                                nn.BatchNorm2d(num_features=self.filter_num),
+                                                                nn.InstanceNorm2d(num_features=self.filter_num),
                                                                 nn.LeakyReLU()))
             else:
                 self.enc_layer_depths.append(enc_block_filter_num*2) # Specific to 3D U-Net architecture (due to doubling of #feature_maps inside the 3-D Encoder)
@@ -101,7 +101,7 @@ class UNet(nn.Module):
                                                                          kernel_size=3,
                                                                          stride=2,
                                                                          padding=1),
-                                                                nn.BatchNorm3d(num_features=self.enc_layer_depths[-1]),
+                                                                nn.InstanceNorm3d(num_features=self.enc_layer_depths[-1]),
                                                                 nn.LeakyReLU()))
 
         # Bottleneck layer
@@ -128,7 +128,7 @@ class UNet(nn.Module):
                                                               kernel_size=3,
                                                               padding=1),
 
-                                                    nn.BatchNorm3d(num_features=bottle_neck_filter_num),
+                                                    nn.InstanceNorm3d(num_features=bottle_neck_filter_num),
 
                                                     nn.LeakyReLU())
 
