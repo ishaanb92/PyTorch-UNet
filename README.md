@@ -3,8 +3,10 @@ U-Net - PyTorch Implementation
 
 Implementation of the [U-Net](http://arxiv.org/abs/1505.04597) model, a popular image segmentation network.
 This is quite stable and configurable, I've used it across multiple datasets and as a component in a couple of projects.
-Update: Also supports segmentation of 3-D volumes based on the [3-D UNet architecture](https://arxiv.org/abs/1606.06650)
-Update: All batch normalization operations have been replaced by instance normalization (to account for small batch sizes in medical images) and ReLU activation has been replaced by LeakyReLU due to its greater adoption in recent works. 
+
+* Update: Also supports segmentation of 3-D volumes based on the [3-D UNet architecture](https://arxiv.org/abs/1606.06650)
+
+* Update: All batch normalization operations have been replaced by instance normalization (to account for small batch sizes in medical images) and ReLU activation has been replaced by LeakyReLU due to its greater adoption in recent works. 
 
 
 
