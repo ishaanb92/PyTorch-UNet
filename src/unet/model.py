@@ -21,7 +21,6 @@ class UNet(nn.Module):
          num_blocks (int) : Number of encoder/decoder blocks
          num_classes(int) : Number of classes that need to be segmented
          mode (str): 2D or 3D
-         use_bn (bool): Flag to activate BatchNorm after convolution op
          use_pooling (bool): Set to 'True' to use MaxPool as downnsampling op.
                              If 'False', strided convolution would be used to downsample feature maps (http://arxiv.org/abs/1908.02182)
          dropout (bool) : Whether dropout should be added to central encoder and decoder blocks (eg: BayesianSegNet)
@@ -30,10 +29,9 @@ class UNet(nn.Module):
          out (torch.Tensor) : Prediction of the segmentation map
 
      """
-    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, use_bn=True, mode='2D', dropout=False, dropout_rate=0.3, use_pooling=True):
+    def __init__(self, n_channels=1, base_filter_num=64, num_blocks=4, num_classes=5, mode='2D', dropout=False, dropout_rate=0.3, use_pooling=True):
 
         super(UNet, self).__init__()
-        self.use_bn = use_bn
         self.contracting_path = nn.ModuleList()
         self.expanding_path = nn.ModuleList()
         self.downsampling_ops = nn.ModuleList()
@@ -75,13 +73,11 @@ class UNet(nn.Module):
             if self.dropout is True and block_id >= num_blocks/2:
                 self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
                                                           filter_num=enc_block_filter_num,
-                                                          use_bn=self.use_bn,
                                                           dropout=True,
                                                           dropout_rate=self.dropout_rate))
             else:
                 self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
                                                           filter_num=enc_block_filter_num,
-                                                          use_bn=self.use_bn,
                                                           dropout=False))
             if self.mode == '2D':
                 self.enc_layer_depths.append(enc_block_filter_num)
@@ -109,8 +105,8 @@ class UNet(nn.Module):
             bottle_neck_filter_num = self.enc_layer_depths[-1]*2
             bottle_neck_in_channels = self.enc_layer_depths[-1]
             self.bottle_neck_layer = self.encoder(filter_num=bottle_neck_filter_num,
-                                                  in_channels=bottle_neck_in_channels,
-                                                  use_bn=self.use_bn)
+                                                  in_channels=bottle_neck_in_channels)
+
         else:  # Modified for the 3D UNet architecture
             bottle_neck_in_channels = self.enc_layer_depths[-1]
             bottle_neck_filter_num = self.enc_layer_depths[-1]*2
@@ -119,7 +115,7 @@ class UNet(nn.Module):
                                                               kernel_size=3,
                                                               padding=1),
 
-                                                    nn.BatchNorm3d(num_features=bottle_neck_in_channels),
+                                                    nn.InstanceNorm3d(num_features=bottle_neck_in_channels),
 
                                                     nn.LeakyReLU(),
 
@@ -140,7 +136,6 @@ class UNet(nn.Module):
                                                         filter_num=self.enc_layer_depths[-1-block_id],
                                                         concat_layer_depth=self.enc_layer_depths[-1-block_id],
                                                         interpolate=False,
-                                                        use_bn=self.use_bn,
                                                         dropout=True,
                                                         dropout_rate=self.dropout_rate))
             else:
@@ -148,7 +143,6 @@ class UNet(nn.Module):
                                                         filter_num=self.enc_layer_depths[-1-block_id],
                                                         concat_layer_depth=self.enc_layer_depths[-1-block_id],
                                                         interpolate=False,
-                                                        use_bn=self.use_bn,
                                                         dropout=False))
 
         # Output Layer

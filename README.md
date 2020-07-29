@@ -4,6 +4,7 @@ U-Net - PyTorch Implementation
 Implementation of the [U-Net](http://arxiv.org/abs/1505.04597) model, a popular image segmentation network.
 This is quite stable and configurable, I've used it across multiple datasets and as a component in a couple of projects.
 Update: Also supports segmentation of 3-D volumes based on the [3-D UNet architecture](https://arxiv.org/abs/1606.06650)
+Update: All batch normalization operations have been replaced by instance normalization (to account for small batch sizes in medical images) and ReLU activation has been replaced by LeakyReLU due to its greater adoption in recent works. 
 
 
 
@@ -64,8 +65,7 @@ print(UNet.__doc__)
          base_filter_num (int) : Number of filters for the first convolution (doubled for every subsequent block)
          num_blocks (int) : Number of encoder/decoder blocks
          num_classes(int) : Number of classes that need to be segmented
-         mode (str): 2D or 3D
-         use_bn (bool): Flag to activate BatchNorm after convolution op
+         mode (str): 2D or 3D input
          use_pooling (bool): Set to 'True' to use MaxPool as downnsampling op.
                              If 'False', strided convolution would be used to downsample feature maps (http://arxiv.org/abs/1908.02182)
 

@@ -15,15 +15,13 @@ class EncoderBlock(nn.Module):
         in_channels (int): Depth (or number of channels) of the tensor that the block acts on
         filter_num (int) : Number of filters used in the convolution ops inside the block,
                              depth of the output of the enc block
-        use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
         dropout(bool) : Flag to decide whether a dropout layer should be applied
         dropout_rate (float) : Probability of dropping a convolution output feature channel
 
     """
-    def __init__(self, filter_num=64, in_channels=1, use_bn=False, dropout=False, dropout_rate=0.3):
+    def __init__(self, filter_num=64, in_channels=1, dropout=False, dropout_rate=0.3):
 
         super(EncoderBlock,self).__init__()
-        self.use_bn = use_bn
         self.filter_num = int(filter_num)
         self.in_channels = int(in_channels)
         self.dropout = dropout
@@ -39,22 +37,19 @@ class EncoderBlock(nn.Module):
                                kernel_size=3,
                                padding=1)
 
-        if self.use_bn is True:
-            self.bn_op_1 = nn.InstanceNorm2d(num_features=self.filter_num)
-            self.bn_op_2 = nn.InstanceNorm2d(num_features=self.filter_num)
+        self.bn_op_1 = nn.InstanceNorm2d(num_features=self.filter_num)
+        self.bn_op_2 = nn.InstanceNorm2d(num_features=self.filter_num)
 
     def forward(self, x):
 
         x = self.conv1(x)
-        if self.use_bn is True:
-            x = self.bn_op_1(x)
+        x = self.bn_op_1(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
             x = F.dropout2d(x, p=self.dropout_rate)
 
         x = self.conv2(x)
-        if self.use_bn is True:
-            x = self.bn_op_2(x)
+        x = self.bn_op_2(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
             x = F.dropout2d(x, p=self.dropout_rate)
@@ -70,12 +65,11 @@ class DecoderBlock(nn.Module):
         concat_layer_depth (int) : Number of channels to be concatenated via skip connections
         filter_num (int) : Number of filters used in convolution, the depth of the output of the dec block
         interpolate (bool) : Decides if upsampling needs to performed via interpolation or transposed convolution
-        use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
         dropout(bool) : Flag to decide whether a dropout layer should be applied
         dropout_rate (float) : Probability of dropping a convolution output feature channel
 
     """
-    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, use_bn=False, dropout=False, dropout_rate=0.3):
+    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, dropout=False, dropout_rate=0.3):
 
         # Up-sampling (interpolation or transposed conv) --> EncoderBlock
         super(DecoderBlock, self).__init__()
@@ -107,7 +101,6 @@ class DecoderBlock(nn.Module):
 
         self.down_sample = EncoderBlock(in_channels=self.in_channels+self.concat_layer_depth,
                                         filter_num=self.filter_num,
-                                        use_bn=use_bn,
                                         dropout=self.dropout,
                                         dropout_rate=self.dropout_rate)
 
@@ -130,13 +123,11 @@ class EncoderBlock3D(nn.Module):
         in_channels (int): Depth (or number of channels) of the tensor that the block acts on
         filter_num (int) : Number of filters used in the convolution ops inside the block,
                              depth of the output of the enc block
-        use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
 
     """
-    def __init__(self, filter_num=64, in_channels=1, use_bn=True, dropout=False):
+    def __init__(self, filter_num=64, in_channels=1, dropout=False):
 
         super(EncoderBlock3D, self).__init__()
-        self.use_bn = use_bn
         self.filter_num = int(filter_num)
         self.in_channels = int(in_channels)
         self.dropout = dropout
@@ -151,22 +142,19 @@ class EncoderBlock3D(nn.Module):
                                kernel_size=3,
                                padding=1)
 
-        if self.use_bn is True:
-            self.bn_op_1 = nn.InstanceNorm3d(num_features=self.filter_num)
-            self.bn_op_2 = nn.InstanceNorm3d(num_features=self.filter_num*2)
+        self.bn_op_1 = nn.InstanceNorm3d(num_features=self.filter_num)
+        self.bn_op_2 = nn.InstanceNorm3d(num_features=self.filter_num*2)
 
     def forward(self, x):
 
         x = self.conv1(x)
-        if self.use_bn is True:
-            x = self.bn_op_1(x)
+        x = self.bn_op_1(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
             x = F.dropout3d(x, p=0.3)
 
         x = self.conv2(x)
-        if self.use_bn is True:
-            x = self.bn_op_2(x)
+        x = self.bn_op_2(x)
         x = F.leaky_relu(x)
 
         if self.dropout is True:
@@ -184,10 +172,9 @@ class DecoderBlock3D(nn.Module):
         concat_layer_depth (int) : Number of channels to be concatenated via skip connections
         filter_num (int) : Number of filters used in convolution, the depth of the output of the dec block
         interpolate (bool) : Decides if upsampling needs to performed via interpolation or transposed convolution
-        use_bn (bool) : Batch-norm is performed between convolutions if this flag is True
 
     """
-    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, use_bn=True, dropout=False):
+    def __init__(self, in_channels, concat_layer_depth, filter_num, interpolate=False, dropout=False):
 
         super(DecoderBlock3D, self).__init__()
         self.filter_num = int(filter_num)
