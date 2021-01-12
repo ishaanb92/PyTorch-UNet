@@ -37,8 +37,8 @@ class EncoderBlock(nn.Module):
                                kernel_size=3,
                                padding=1)
 
-        self.bn_op_1 = nn.InstanceNorm2d(num_features=self.filter_num)
-        self.bn_op_2 = nn.InstanceNorm2d(num_features=self.filter_num)
+        self.bn_op_1 = nn.InstanceNorm2d(num_features=self.filter_num, affine=True)
+        self.bn_op_2 = nn.InstanceNorm2d(num_features=self.filter_num, affine=True)
 
     def forward(self, x):
 
