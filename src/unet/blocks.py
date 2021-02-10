@@ -46,13 +46,13 @@ class EncoderBlock(nn.Module):
         x = self.bn_op_1(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = F.dropout2d(x, p=self.dropout_rate)
+            x = F.dropout(x, p=self.dropout_rate)
 
         x = self.conv2(x)
         x = self.bn_op_2(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = F.dropout2d(x, p=self.dropout_rate)
+            x = F.dropout(x, p=self.dropout_rate)
         return x
 
 
