@@ -40,19 +40,26 @@ class EncoderBlock(nn.Module):
         self.bn_op_1 = nn.InstanceNorm2d(num_features=self.filter_num, affine=True)
         self.bn_op_2 = nn.InstanceNorm2d(num_features=self.filter_num, affine=True)
 
+        # Use Dropout ops as nn.Module instead of nn.functional definition
+        # So using .train() and .eval() flags, can modify their behavior for MC-Dropout
+        if dropout is True:
+            self.dropout_1 = nn.Dropout2d(p=dropout_rate)
+            self.dropout_2 = nn.Dropout2d(p=dropout_rate)
+
     def forward(self, x):
 
         x = self.conv1(x)
         x = self.bn_op_1(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = F.dropout(x, p=self.dropout_rate)
+            x = self.dropout_1(x)
 
         x = self.conv2(x)
         x = self.bn_op_2(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = F.dropout(x, p=self.dropout_rate)
+            x = self.dropout_2(x)
+
         return x
 
 

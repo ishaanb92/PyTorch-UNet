@@ -131,7 +131,7 @@ class UNet(nn.Module):
         # Decoder Path
         for block_id in range(num_blocks):
             dec_in_channels = int(bottle_neck_filter_num//pow(2, block_id))
-            if self.dropout is True and block_id <= num_blocks/2:
+            if self.dropout is True and block_id < num_blocks/2:
                 self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
                                                         filter_num=self.enc_layer_depths[-1-block_id],
                                                         concat_layer_depth=self.enc_layer_depths[-1-block_id],
