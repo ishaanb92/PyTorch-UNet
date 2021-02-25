@@ -155,7 +155,7 @@ class UNet(nn.Module):
                                     out_channels=self.n_classes,
                                     kernel_size=1)
 
-    def forward(self, x):
+    def forward(self, x, seeds=None):
 
         if self.mode == '2D':
             h, w = x.shape[-2:]
@@ -164,8 +164,13 @@ class UNet(nn.Module):
 
         # Encoder
         enc_outputs = []
+        seed_index = 0
         for stage, enc_op in enumerate(self.contracting_path):
-            x = enc_op(x)
+            if stage >= len(self.contracting_path)//2:
+                x = enc_op(x, seeds[seed_index:seed_index+2])
+                seed_index += 2 # 2 seeds required per block
+            else:
+                x = enc_op(x)
             enc_outputs.append(x)
 
             if self.pooling is True:
@@ -178,7 +183,11 @@ class UNet(nn.Module):
 
         # Decoder
         for block_id, dec_op in enumerate(self.expanding_path):
-            x = dec_op(x, enc_outputs[-1-block_id])
+            if block_id < len(self.expanding_path)//2:
+                x = dec_op(x, enc_outputs[-1-block_id], seeds[seed_index:seed_index+2])
+                seed_index += 2
+            else:
+                x = dec_op(x, enc_outputs[-1-block_id])
 
         # Output
         x = self.output(x)

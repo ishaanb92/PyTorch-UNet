@@ -46,19 +46,37 @@ class EncoderBlock(nn.Module):
             self.dropout_1 = nn.Dropout2d(p=dropout_rate)
             self.dropout_2 = nn.Dropout2d(p=dropout_rate)
 
-    def forward(self, x):
+    def apply_manual_dropout_mask(self, x, seed):
+        # Mask size : [BatchSz, Channels]
+        dropout_mask = torch.bernoulli(input=torch.empty(x.shape[1]).fill_(self.dropout_rate),
+                                       generator=torch.Generator().manual_seed(seed))
+
+        dropout_mask = dropout_mask[:, None, None]
+        x = x*dropout_mask.to(x.device)
+        return x
+
+    def forward(self, x, seeds=None):
+
+        if seeds is not None:
+            assert(seeds.shape[0] == 2)
 
         x = self.conv1(x)
         x = self.bn_op_1(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = self.dropout_1(x)
+            if seeds is None:
+                x = self.dropout_1(x)
+            else:
+                x = self.apply_manual_dropout_mask(x, seeds[0].item())
 
         x = self.conv2(x)
         x = self.bn_op_2(x)
         x = F.leaky_relu(x)
         if self.dropout is True:
-            x = self.dropout_2(x)
+            if seeds is None:
+                x = self.dropout_2(x)
+            else:
+                x = self.apply_manual_dropout_mask(x, seeds[1].item())
 
         return x
 
@@ -111,14 +129,14 @@ class DecoderBlock(nn.Module):
                                         dropout=self.dropout,
                                         dropout_rate=self.dropout_rate)
 
-    def forward(self, x, skip_layer):
+    def forward(self, x, skip_layer, seeds=None):
         if self.interpolate is True:
             up_sample_out = F.leaky_relu(self.up_sample_interpolate(x))
         else:
             up_sample_out = F.leaky_relu(self.up_sample_tranposed(x))
 
         merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
-        out = self.down_sample(merged_out)
+        out = self.down_sample(merged_out, seeds=seeds)
         return out
 
 
