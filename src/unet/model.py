@@ -59,12 +59,16 @@ class UNet(nn.Module):
             print('{} mode is invalid'.format(mode))
 
         for block_id in range(num_blocks):
-            enc_block_filter_num = int(pow(2, block_id)*self.base_filter_num)  # Output depth of current encoder stage of the 2-D variant
+            # Due to GPU mem constraints, we cap the filter depth at 512
+            enc_block_filter_num = min(int(pow(2, block_id)*self.base_filter_num), 512)  # Output depth of current encoder stage of the 2-D variant
             if block_id == 0:
                 enc_in_channels = self.n_channels
             else:
                 if self.mode == '2D':
-                    enc_in_channels = enc_block_filter_num//2
+                    if int(pow(2, block_id)*self.base_filter_num) <= 512:
+                        enc_in_channels = enc_block_filter_num//2
+                    else:
+                        enc_in_channels = 512
                 else:
                     enc_in_channels = enc_block_filter_num  # In the 3D UNet arch, the encoder features double in the 2nd convolution op
 
@@ -129,8 +133,8 @@ class UNet(nn.Module):
                                                     nn.LeakyReLU())
 
         # Decoder Path
+        dec_in_channels = int(bottle_neck_filter_num)
         for block_id in range(num_blocks):
-            dec_in_channels = int(bottle_neck_filter_num//pow(2, block_id))
             if self.dropout is True and block_id < num_blocks/2:
                 self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
                                                         filter_num=self.enc_layer_depths[-1-block_id],
@@ -144,6 +148,8 @@ class UNet(nn.Module):
                                                         concat_layer_depth=self.enc_layer_depths[-1-block_id],
                                                         interpolate=False,
                                                         dropout=False))
+
+            dec_in_channels = self.enc_layer_depths[-1-block_id]
 
         # Output Layer
         if mode == '2D':
@@ -167,7 +173,10 @@ class UNet(nn.Module):
         seed_index = 0
         for stage, enc_op in enumerate(self.contracting_path):
             if stage >= len(self.contracting_path)//2:
-                x = enc_op(x, seeds[seed_index:seed_index+2])
+                if seeds is not None:
+                    x = enc_op(x, seeds[seed_index:seed_index+2])
+                else:
+                    x = enc_op(x)
                 seed_index += 2 # 2 seeds required per block
             else:
                 x = enc_op(x)
@@ -180,14 +189,17 @@ class UNet(nn.Module):
 
         # Bottle-neck layer
         x = self.bottle_neck_layer(x)
-
         # Decoder
         for block_id, dec_op in enumerate(self.expanding_path):
             if block_id < len(self.expanding_path)//2:
-                x = dec_op(x, enc_outputs[-1-block_id], seeds[seed_index:seed_index+2])
+                if seeds is not None:
+                    x = dec_op(x, enc_outputs[-1-block_id], seeds[seed_index:seed_index+2])
+                else:
+                    x = dec_op(x, enc_outputs[-1-block_id])
                 seed_index += 2
             else:
                 x = dec_op(x, enc_outputs[-1-block_id])
+
 
         # Output
         x = self.output(x)
