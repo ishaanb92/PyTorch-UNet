@@ -172,7 +172,7 @@ class UNet(nn.Module):
         enc_outputs = []
         seed_index = 0
         for stage, enc_op in enumerate(self.contracting_path):
-            if stage >= len(self.contracting_path)//2:
+            if stage >= len(self.contracting_path) - 2:
                 if seeds is not None:
                     x = enc_op(x, seeds[seed_index:seed_index+2])
                 else:
@@ -191,7 +191,7 @@ class UNet(nn.Module):
         x = self.bottle_neck_layer(x)
         # Decoder
         for block_id, dec_op in enumerate(self.expanding_path):
-            if block_id < len(self.expanding_path)//2:
+            if block_id < 2:
                 if seeds is not None:
                     x = dec_op(x, enc_outputs[-1-block_id], seeds[seed_index:seed_index+2])
                 else:

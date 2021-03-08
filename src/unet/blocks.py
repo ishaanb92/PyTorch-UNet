@@ -43,16 +43,16 @@ class EncoderBlock(nn.Module):
         # Use Dropout ops as nn.Module instead of nn.functional definition
         # So using .train() and .eval() flags, can modify their behavior for MC-Dropout
         if dropout is True:
-            self.dropout_1 = nn.Dropout2d(p=dropout_rate)
-            self.dropout_2 = nn.Dropout2d(p=dropout_rate)
+            self.dropout_1 = nn.Dropout(p=dropout_rate)
+            self.dropout_2 = nn.Dropout(p=dropout_rate)
 
     def apply_manual_dropout_mask(self, x, seed):
-        # Mask size : [BatchSz, Channels]
-        dropout_mask = torch.bernoulli(input=torch.empty(x.shape[1]).fill_(self.dropout_rate),
+        # Mask size : [Batch_size, Channels, Height, Width]
+        dropout_mask = torch.bernoulli(input=torch.empty(x.shape[0], x.shape[1], x.shape[2], x.shape[3]).fill_(self.dropout_rate),
                                        generator=torch.Generator().manual_seed(seed))
 
-        dropout_mask = dropout_mask[:, None, None]
         x = x*dropout_mask.to(x.device)
+
         return x
 
     def forward(self, x, seeds=None):
