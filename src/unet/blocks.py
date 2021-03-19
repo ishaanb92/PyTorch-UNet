@@ -106,23 +106,24 @@ class DecoderBlock(nn.Module):
         self.dropout_rate = dropout_rate
 
         # Upsample by interpolation followed by a 3x3 convolution to obtain desired depth
-        self.up_sample_interpolate = nn.Sequential(nn.Upsample(scale_factor=2,
-                                                               mode='bilinear',
-                                                               align_corners=True),
+        if interpolate is True:
+            self.up_sample = nn.Sequential(nn.Upsample(scale_factor=2,
+                                                                   mode='bilinear',
+                                                                   align_corners=True),
 
-                                                   nn.Conv2d(in_channels=self.in_channels,
-                                                             out_channels=self.in_channels,
-                                                             kernel_size=3,
-                                                             padding=1)
-                                                  )
-
-        # Upsample via transposed convolution (know to produce artifacts)
-        self.up_sample_tranposed = nn.ConvTranspose2d(in_channels=self.in_channels,
-                                                      out_channels=self.in_channels,
-                                                      kernel_size=3,
-                                                      stride=2,
-                                                      padding=1,
-                                                      output_padding=1)
+                                                       nn.Conv2d(in_channels=self.in_channels,
+                                                                 out_channels=self.in_channels,
+                                                                 kernel_size=3,
+                                                                 padding=1)
+                                                      )
+        else:
+            # Upsample via transposed convolution (know to produce artifacts)
+            self.up_sample = nn.ConvTranspose2d(in_channels=self.in_channels,
+                                                          out_channels=self.in_channels,
+                                                          kernel_size=2,
+                                                          stride=2,
+                                                          padding=0,
+                                                          output_padding=0)
 
         self.down_sample = EncoderBlock(in_channels=self.in_channels+self.concat_layer_depth,
                                         filter_num=self.filter_num,
@@ -130,11 +131,7 @@ class DecoderBlock(nn.Module):
                                         dropout_rate=self.dropout_rate)
 
     def forward(self, x, skip_layer, seeds=None):
-        if self.interpolate is True:
-            up_sample_out = F.leaky_relu(self.up_sample_interpolate(x))
-        else:
-            up_sample_out = F.leaky_relu(self.up_sample_tranposed(x))
-
+        up_sample_out = F.leaky_relu(self.up_sample(x))
         merged_out = torch.cat([up_sample_out, skip_layer], dim=1)
         out = self.down_sample(merged_out, seeds=seeds)
         return out
