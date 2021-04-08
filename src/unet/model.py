@@ -74,7 +74,7 @@ class UNet(nn.Module):
 
 
             # Dropout only applied to central encoder blocks -- See BayesianSegNet by Kendall et al.
-            if self.dropout is True and block_id >= num_blocks-2:
+            if self.dropout is True and block_id >= num_blocks-1:
                 self.contracting_path.append(self.encoder(in_channels=enc_in_channels,
                                                           filter_num=enc_block_filter_num,
                                                           dropout=True,
@@ -108,8 +108,11 @@ class UNet(nn.Module):
         if self.mode == '2D':
             bottle_neck_filter_num = self.enc_layer_depths[-1]*2
             bottle_neck_in_channels = self.enc_layer_depths[-1]
+
             self.bottle_neck_layer = self.encoder(filter_num=bottle_neck_filter_num,
-                                                  in_channels=bottle_neck_in_channels)
+                                                  in_channels=bottle_neck_in_channels,
+                                                  dropout=self.dropout,
+                                                  dropout_rate=self.dropout_rate)
 
         else:  # Modified for the 3D UNet architecture
             bottle_neck_in_channels = self.enc_layer_depths[-1]
@@ -135,7 +138,7 @@ class UNet(nn.Module):
         # Decoder Path
         dec_in_channels = int(bottle_neck_filter_num)
         for block_id in range(num_blocks):
-            if self.dropout is True and block_id < 2:
+            if self.dropout is True and block_id < 1:
                 self.expanding_path.append(self.decoder(in_channels=dec_in_channels,
                                                         filter_num=self.enc_layer_depths[-1-block_id],
                                                         concat_layer_depth=self.enc_layer_depths[-1-block_id],
